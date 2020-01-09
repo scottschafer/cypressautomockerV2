@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "recordings": [
+    {
+      "method": "DELETE",
+      "path": "/counter",
+      "query": "",
+      "request": "",
+      "response": "counter reset",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 1,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.DELETE1.txt"
+    },
+    {
+      "method": "POST",
+      "path": "/counter",
+      "query": "increment=1&delay=0",
+      "request": "",
+      "response": "In case you care, sqrt(1) = 1",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 1,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.POST1.txt"
+    },
+    {
+      "method": "POST",
+      "path": "/counter",
+      "query": "increment=2&delay=0",
+      "request": "",
+      "response": "In case you care, sqrt(3) = 1.7320508075688772",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 2,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.POST2.txt"
+    },
+    {
+      "method": "GET",
+      "path": "/counter",
+      "query": "",
+      "request": "",
+      "response": "3",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 1,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.GET1.txt"
+    }
+  ]
+}
