@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "recordings": [
+    {
+      "method": "DELETE",
+      "path": "/counter",
+      "query": "",
+      "request": "",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 1,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.DELETE1.txt"
+    },
+    {
+      "method": "POST",
+      "path": "/counter",
+      "query": "increment=1&delay=0",
+      "request": "",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 1,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.POST1.txt"
+    },
+    {
+      "method": "POST",
+      "path": "/counter",
+      "query": "increment=2&delay=0",
+      "request": "",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 2,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.POST2.txt"
+    },
+    {
+      "method": "GET",
+      "path": "/counter",
+      "query": "",
+      "request": "",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 1,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.GET1.txt"
+    },
+    {
+      "method": "GET",
+      "path": "/counter",
+      "query": "",
+      "request": "",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 2,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.GET2.txt"
+    },
+    {
+      "method": "POST",
+      "path": "/counter",
+      "query": "increment=1&delay=0",
+      "request": "",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 3,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.POST3.txt"
+    },
+    {
+      "method": "GET",
+      "path": "/counter",
+      "query": "",
+      "request": "",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 3,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.GET3.txt"
+    },
+    {
+      "method": "POST",
+      "path": "/counter",
+      "query": "increment=2&delay=1000",
+      "request": "",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 4,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.POST4.txt"
+    },
+    {
+      "method": "POST",
+      "path": "/counter",
+      "query": "increment=2&delay=1000",
+      "request": "",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 5,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.POST5.txt"
+    },
+    {
+      "method": "GET",
+      "path": "/counter",
+      "query": "",
+      "request": "",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/html; charset=utf-8",
+      "count": 4,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/counter.GET4.txt"
+    },
+    {
+      "method": "GET",
+      "path": "/api/people/2/",
+      "query": "",
+      "request": "",
+      "status": 200,
+      "statusText": "",
+      "contentType": "application/json",
+      "count": 1,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/api/people/2.GET1.json"
+    },
+    {
+      "method": "POST",
+      "path": "/error",
+      "query": "",
+      "request": "",
+      "status": 402,
+      "statusText": "Payment Required",
+      "contentType": "text/html; charset=utf-8",
+      "count": 1,
+      "fixturePath": "./cypress/fixtures/automocks/testCounter/error.POST1.txt"
+    }
+  ]
+}

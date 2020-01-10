@@ -24,7 +24,10 @@ function registerAutoMockCommands() {
 
   let completedPendingRequestsFunc = null;
   var pendingApiCount = 0;
-  let automocker = null;
+  let automocker = {
+    isRecording: false,
+    isMocking: false
+  };
 
   // the default mock resolution function, can be overridden in options
   const defaultResolveMockFunc = (req, mockArray) => {
@@ -128,7 +131,6 @@ function registerAutoMockCommands() {
       true;
 
     const testDirPath = './cypress/integration';
-    debugger;
     currentOptions = options = {
       isCustomMock: false,
       verbose: false,
@@ -339,145 +341,6 @@ function registerAutoMockCommands() {
       }
     });
   });
-
-  // Cypress.Commands.add('writeMockServer', () => {
-  //   if (currentMockFileName !== null && recordedApis) {
-  //     let apiCounter = {};
-
-  //     recordedApis.forEach(recordedApi => {
-  //       let outPath = recordedApi.path;
-  //       if (outPath[outPath.length - 1] === '/') {
-  //         outPath = outPath.substr(0, outPath.length - 1);
-  //       }
-  //       if (outPath[0] === '/') {
-  //         outPath = outPath.substr(1);
-  //       }
-  //       outPath += recordedApi.query;
-  //       if (apiCounter[outPath]) {
-  //         ++apiCounter[outPath];
-  //       } else {
-  //         apiCounter[outPath] = 1;
-  //       }
-  //       outPath += '.' + recordedApi.method + apiCounter[outPath];
-
-  //       if (recordedApi.contentType.indexOf('json') !== -1) {
-  //         outPath += '.json';
-  //       } else if (recordedApi.contentType.indexOf('text') !== -1) {
-  //         outPath += '.txt';
-  //       }
-  //       recordedApi.fixture = outPath;
-  //       cy.writeFile(currentMockFixtureName + '/' + outPath, recordedApi.response);
-  //     });
-
-  //     recordedApis.version = version;
-
-  //     debugger;
-  //     cy.writeFile(currentMockFileName, recordedApis);
-
-
-  //     currentMockFileName = null;
-  //   } else {
-  //     currentMockFileName = null;
-  //   }
-  // });
-
-  automocker = window.Cypress.autoMocker = {
-    isRecording: false,
-    isMocking: false,
-    mockResponse: request => {
-      if (automocker.isMocking) {
-        let key = getApiKey(request);
-        let mock = null;
-        if (apiKeyToMocks.hasOwnProperty(key)) {
-          const apiCount = apiKeyToCallCounts[key]++;
-          if (apiCount < apiKeyToMocks[key].length) {
-            mock = apiKeyToMocks[key][apiCount];
-          }
-        }
-
-        if (currentOptions.resolveMockFunc) {
-          mock = currentOptions.resolveMockFunc(request, mockArray, mock);
-        }
-
-        if (mock) {
-          log('MOCKING ' + request.url);
-          return {
-            status: mock.status,
-            statusText: mock.statusText,
-            response: JSON.stringify(mock.response)
-          };
-        }
-
-      } else if (automocker.isRecording) {
-        function prepareOnLoadHandler(xhr) {
-          (function () {
-            const old_onload = xhr.onload;
-            const url = xhr.url;
-            const method = xhr.method;
-
-            xhr.onload = () => {
-
-              if (old_onload) {
-                old_onload();
-              }
-              let parsed = parseUri(url);
-              let query = '';
-              var blobResponseObject = null;
-
-              log('RECORD: ' + url);
-
-              if (typeof xhr.response === 'object') {
-                var fr = new FileReader();
-                fr.onload = function (e) {
-                  var blobText = e.target.result;
-                  blobResponseObject = JSON.parse(blobText);
-                  let requestObject = xhr.request ?
-                    JSON.parse(JSON.stringify(xhr.request)) :
-                    '';
-                  let responseObject;
-                  if (!blobResponseObject) {
-                    responseObject = xhr.response ?
-                      JSON.parse(JSON.stringify(xhr.response)) :
-                      '';
-                  } else {
-                    responseObject = blobResponseObject;
-                  }
-                  recordTransformedObject(xhr, requestObject, responseObject);
-                };
-                fr.readAsText(xhr.response);
-              } else {
-                let requestObject = xhr.request ?
-                  JSON.parse(JSON.stringify(xhr.request)) :
-                  '';
-                let responseObject = xhr.response ?
-                  JSON.parse(JSON.stringify(xhr.response)) :
-                  '';
-                recordTransformedObject(xhr, requestObject, responseObject);
-              }
-            };
-          })();
-        }
-        prepareOnLoadHandler(request);
-      }
-      if (automocker.isMocking) {
-        log(
-          'MOCKING ON, but letting this fall through: ' + request.url
-        );
-      }
-      ++pendingApiCount;
-      return false;
-    },
-
-    onloadstart: event => {},
-
-    onloadend: event => {
-      --pendingApiCount;
-      if (!pendingApiCount && completedPendingRequestsFunc) {
-        completedPendingRequestsFunc();
-        completedPendingRequestsFunc = null;
-      }
-    }
-  };
 
   function startApiRecording() {
     log('CypressAutoMocker: recording APIs');

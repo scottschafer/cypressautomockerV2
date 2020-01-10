@@ -12,19 +12,19 @@ describe('test - typescript', function () {
 
   before(() => {
 
-    cy.automock(MOCK_FILENAME, MOCK_VERSION);
+    // to use default options, you can just do this:
+    // cy.automock(MOCK_FILENAME, MOCK_VERSION);
 
     // a more full-feature example is shown here:
-    // cy.automock(MOCK_FILENAME,
-    //   MOCK_VERSION, {
-    //   verbose: true,       // do we log verbosely to the console
-    //   includeQuery: true,  // do we consider query parameters as part of the API
-    //   resolveMockFunc: (request, mockArray, mock) => {
-    //     console.log(request.method + ' ' + request.url);
-    //     // just return the resolved mock. This is a no-op. We could resolve to a different one in mockArray
-    //     return mock;
-    //   }
-    // });
+    cy.automock(MOCK_FILENAME, MOCK_VERSION, {
+      verbose: true,       // do we log verbosely to the console
+      includeQuery: false,  // do we consider query parameters as part of the API
+      resolveMockFunc: (request, mockArray, mock) => {
+        console.log(request.method + ' ' + request.url);
+        // just return the resolved mock. This is a no-op. We could resolve to a different one in mockArray
+        return mock;
+      }
+    });
   });
 
   after(() => {
@@ -83,7 +83,7 @@ describe('test - typescript', function () {
 
     cy.get('[data-test=button-test-get]').click();
     cy.get('[data-test=button-test-fetch]').click();
-    // cy.get('[data-test=sw1]').contains('https://swapi.co/api');
+    // cy.get('[data-test=sw1]').contains('https://swapi.co/api'); // fetch is having problems
     cy.get('[data-test=sw2]').contains('https://swapi.co/api');
   });
 
