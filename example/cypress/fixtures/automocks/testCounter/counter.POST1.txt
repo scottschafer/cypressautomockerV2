@@ -1,1 +1,0 @@
-In case you care, sqrt(1) = 1

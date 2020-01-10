@@ -8,45 +8,36 @@ import '../support/commands'; // seems to help VS Code's IntelliSense
 describe('test - typescript', function () {
 
   const MOCK_FILENAME = 'testCounter';
-
-  let version = 1;
+  const MOCK_VERSION = 1; // bump the version to force the APIs to be re-recorded
 
   before(() => {
 
-    cy.automock(MOCK_FILENAME, version, {
-      resolveMockFunc: (request, mockArray, mock) => {
-        console.log(request.method + ' ' + request.url);
-        // just return the resolved mock. This is a no-op. We could resolve to a different one in mockArray
-        return mock;
-      }
-    });
-    // note: the above is equivalent to cy.automock(MOCK_FILENAME);
+    cy.automock(MOCK_FILENAME, MOCK_VERSION);
 
+    // a more full-feature example is shown here:
+    // cy.automock(MOCK_FILENAME,
+    //   MOCK_VERSION, {
+    //   verbose: true,       // do we log verbosely to the console
+    //   includeQuery: true,  // do we consider query parameters as part of the API
+    //   resolveMockFunc: (request, mockArray, mock) => {
+    //     console.log(request.method + ' ' + request.url);
+    //     // just return the resolved mock. This is a no-op. We could resolve to a different one in mockArray
+    //     return mock;
+    //   }
+    // });
   });
 
   after(() => {
-     cy.automockEnd();
+    cy.automockEnd();
   });
 
   beforeEach(() => {
     cy.automockServer();
-
-    // cy.server();
-    // cy.route({
-    //   method: 'GET',
-    //   url: '/counter',
-    //   response: () => {
-    //     console.log('stubbed /counter returning ' + counter);
-    //     return counter++;
-    //   }
-    // });
-
   });
 
   // first run, start by resetting the counter
   it('basic counter works as expected', function () {
-
-    cy.visit('/')
+    cy.visit('/');
 
     // reset the counter
     cy.get('[data-test=button-reset]').click();
@@ -63,41 +54,42 @@ describe('test - typescript', function () {
     cy.get('[data-test=counter-label]').contains('3');
   });
 
-  // // second run, don't reset the counter so that API will proceed from previous value
-  // it('basic counter works as expected, run #2', function () {
+  // second run, don't reset the counter so that API will proceed from previous value
+  it('basic counter works as expected, run #2', function () {
 
-  //   // click on buttons that increment the counter after a second (simulating a slower API)
-  //   cy.get('[data-test=button-increment2-delay]').click();
-  //   cy.get('[data-test=button-increment2-delay]').click();
+    // click on buttons that increment the counter after a second (simulating a slower API)
+    cy.get('[data-test=button-increment2-delay]').click();
+    cy.get('[data-test=button-increment2-delay]').click();
 
-  //   // refresh, verify that counter hasn't changed
-  //   cy.get('[data-test=button-refresh]').click();
-  //   cy.get('[data-test=counter-label]').contains('3');
+    // refresh, verify that counter hasn't changed
+    cy.get('[data-test=button-refresh]').click();
+    cy.get('[data-test=counter-label]').contains('3');
 
-  //   // now click a button that does an immediate increment, refresh and verify counter
-  //   cy.get('[data-test=button-increment]').click();
-  //   cy.get('[data-test=button-refresh]').click();
-  //   cy.get('[data-test=counter-label]').contains('4');
+    // now click a button that does an immediate increment, refresh and verify counter
+    cy.get('[data-test=button-increment]').click();
+    cy.get('[data-test=button-refresh]').click();
+    cy.get('[data-test=counter-label]').contains('4');
 
-  //   // wait for the "slower" APIs to finish
-  //   cy.automockWaitOnPendingAPIs();
+    // // wait for the "slower" APIs to finish
+    cy.automockWaitOnPendingAPIs();
 
-  //   // refresh and verify value
-  //   cy.wait(2000);
-  //   cy.get('[data-test=button-refresh]').click();
-  //   cy.get('[data-test=counter-label]').contains('8');
-  // });
+    // refresh and verify value
+    cy.wait(2000);
+    cy.get('[data-test=button-refresh]').click();
+    cy.get('[data-test=counter-label]').contains('8');
+  });
 
-  // it('fetch and get are equivalent', function () {
-  //   cy.get('[data-test=button-test-get]').click();
-  //   cy.get('[data-test=button-test-fetch]').click();
-  //   cy.get('[data-test=sw1]').contains('https://swapi.co/api');
-  //   cy.get('[data-test=sw2]').contains('https://swapi.co/api');
-  // });
+  it('fetch and get are equivalent', function () {
 
-  // it('handles API errors', function () {
-  //   cy.get('[data-test=button-test-post-with-error]').click();
-  //   cy.get('[data-test=result-text]').contains('402');
-  // });
+    cy.get('[data-test=button-test-get]').click();
+    cy.get('[data-test=button-test-fetch]').click();
+    // cy.get('[data-test=sw1]').contains('https://swapi.co/api');
+    cy.get('[data-test=sw2]').contains('https://swapi.co/api');
+  });
+
+  it('handles API errors', function () {
+    cy.get('[data-test=button-test-post-with-error]').click();
+    cy.get('[data-test=result-text]').contains('402');
+  });
 
 })

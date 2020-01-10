@@ -1,1 +1,0 @@
-In case you care, sqrt(3) = 1.7320508075688772

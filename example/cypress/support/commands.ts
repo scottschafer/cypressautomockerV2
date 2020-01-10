@@ -28,6 +28,8 @@ interface IMockEntry {
 }
 
 type automock = (filename: string, version: number, options?: {
+  verbose?: boolean,
+  includeQuery?: boolean,
   resolveMockFunc?: (
     request: { url: string, method: string },
     mockArray: Array<IMockEntry>,

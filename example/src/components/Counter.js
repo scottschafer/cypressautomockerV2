@@ -145,6 +145,7 @@ export default class Counter extends React.Component {
         return response.json();
       })
       .then((myJson) => {
+        debugger;
         this.setState({
           sw1: myJson
         });

@@ -1,14 +1,8 @@
-/**
- * cy.testRequests(cb)
- *  Calls cb() with the entire array of requests made from the frontend to the mock server.
- *
- *  * cy.testRequests(filter, cb)
- *  Calls cb() with the array of requests where the URL contains filter.
- */
-
 module.exports = registerAutoMockCommands;
 
 function registerAutoMockCommands() {
+
+  let log = console.log;
 
   // use xhook
   let xHookPackage = null;
@@ -31,7 +25,29 @@ function registerAutoMockCommands() {
   let completedPendingRequestsFunc = null;
   var pendingApiCount = 0;
   let automocker = null;
-  
+
+  // the default mock resolution function, can be overridden in options
+  const defaultResolveMockFunc = (req, mockArray) => {
+    const apiKey = getApiKey(req);
+    let mock = null;
+    if (!apiKeyToCallCounts[apiKey]) {
+      apiKeyToCallCounts[apiKey] = 1;
+    }
+
+    for (let i = 0; i < mockArray.length; i++) {
+      let testMock = mockArray[i];
+      if (apiKey === getApiKey(testMock)) {
+        mock = testMock;
+        if (testMock.count === apiKeyToCallCounts[apiKey]) {
+          break;
+        }
+      }
+    }
+    if (mock) {
+      ++apiKeyToCallCounts[apiKey];
+    }
+    return mock;
+  }
 
   // record an intercepted API 
   function recordTransformedObject(
@@ -46,7 +62,7 @@ function registerAutoMockCommands() {
     ) {
       try {
         responseObject = JSON.parse(responseObject);
-      } catch (e) { }
+      } catch (e) {}
     }
 
     let transformedObject = {
@@ -68,8 +84,10 @@ function registerAutoMockCommands() {
     if (outPath[0] === '/') {
       outPath = outPath.substr(1);
     }
+    if (currentOptions.includeQuery && transformedObject.query) {
+      outPath += '?' + transformedObject.query;
+    }
     outPath += '.' + transformedObject.method;
-    // outPath += transformedObject.query; - don't include query, as it might contain timestamp information etc
     if (apiCounter[outPath]) {
       ++apiCounter[outPath];
     } else {
@@ -85,6 +103,7 @@ function registerAutoMockCommands() {
     }
     transformedObject.fixturePath = currentMockFixtureName + '/' + outPath;
 
+    log('recording ' + outPath);
     recordedApis.push(transformedObject);
   }
 
@@ -92,7 +111,7 @@ function registerAutoMockCommands() {
 
     currentVersion = version;
     if (!xHookPackage) {
-      const xHookUrl = 'https://unpkg.com/xhook@latest/dist/xhook.min.js';
+      const xHookUrl = 'https://cdnjs.cloudflare.com/ajax/libs/xhook/1.4.9/xhook.min.js';
       cy.request(xHookUrl)
         .then(response => {
           xHookPackage = response.body;
@@ -109,7 +128,15 @@ function registerAutoMockCommands() {
       true;
 
     const testDirPath = './cypress/integration';
-    options = setOptions(options);
+    debugger;
+    currentOptions = options = {
+      isCustomMock: false,
+      verbose: false,
+      includeQuery: false,
+      resolveMockFunc: defaultResolveMockFunc,
+      ...options
+    };
+    log = options.verbose ? console.log : function () {};
 
     currentMockFixtureName = './cypress/fixtures/automocks/' + sessionName;
 
@@ -129,10 +156,11 @@ function registerAutoMockCommands() {
       log: false
     }).then(result => {
       const mockFilePath = result.stdout + '/cypress/automocks/' + sessionName;
+      log('mockFilePath = ' + mockFilePath);
       const absolutePathToMockFile =
         Cypress.platform === 'win32' ?
-          mockFilePath.split('/').join('\\') :
-          mockFilePath;
+        mockFilePath.split('/').join('\\') :
+        mockFilePath;
       // if the config allows us to replay the mock, test if it exists
       if (automockPlayback) {
         cy.exec(ls + absolutePathToMockFile, {
@@ -143,18 +171,21 @@ function registerAutoMockCommands() {
           if (result.code === 0) {
             // file exists, so mock APIs
             cy.readFile(currentMockFileName).then(contents => {
+              log('loaded JSON, version = ' + contents.version);
               if (contents.version === version) {
                 sessionFileExists = true;
                 startApiMocking(contents);
               } else {
-                debugger;
                 cy.exec('rm ' + absolutePathToMockFile);
               }
+              if (!sessionFileExists) {
+                // file doesn't exist, so start recording if allowed
+                if (!currentOptions.isCustomMock && automockRecord) {
+                  startApiRecording();
+                }
+              }
             });
-          }
-
-          if (!sessionFileExists) {
-            // file doesn't exist, so start recording if allowed
+          } else {
             if (!currentOptions.isCustomMock && automockRecord) {
               startApiRecording();
             }
@@ -178,14 +209,18 @@ function registerAutoMockCommands() {
         if (currentMockFileName !== null && recordedApis) {
           recordedApis.version = currentVersion;
 
-          cy.writeFile(currentMockFileName, {
-            version: currentVersion,
-            recordings: recordedApis
-          });
-
           recordedApis.forEach(recordedApi => {
             let outPath = recordedApi.fixturePath;
             cy.writeFile(outPath, recordedApi.response);
+          });
+
+          recordedApis.forEach(recordedApi => {
+            delete recordedApi.response;
+          });
+
+          cy.writeFile(currentMockFileName, {
+            version: currentVersion,
+            recordings: recordedApis
           });
 
           currentMockFileName = null;
@@ -246,42 +281,46 @@ function registerAutoMockCommands() {
 
     if (automocker.isMocking) {
 
-      // Jaime Pillora <dev@jpillora.com> - MIT Copyright 2018
-      // const xHookUrl = 'https://unpkg.com/xhook@latest/dist/xhook.min.js';
-      // cy.request(xHookUrl)
-      //   .then(response => {
-      //     xHookPackage = response.body;
-      //   });
-
       Cypress.on('window:before:load', win => {
 
         // load the library in the cypress window, creates a 'xhook' object on the Window
         win.eval(xHookPackage);
-        // tap into the .before() method 
+
+        // Remove fetch from the global window object, so we automatically trigger
+        // the XHR fallback. Should be the same as the jQuery implementation?
+        delete win.fetch;
+        win.fetch = null;
+
+        // tap into the .before() method
         win.xhook.before(req => {
 
-          const apiKey = req.method + '.' + req.url.split('?')[0];
-          let mock = null;
-          if (!apiKeyToCallCounts[apiKey]) {
-            apiKeyToCallCounts[apiKey] = 1;
+          const apiKey = getApiKey(req);
+
+          let mock = defaultResolveMockFunc(req, mockArray, null);
+          if (currentOptions.resolveMockFunc !== defaultResolveMockFunc) {
+            mock = currentOptions.resolveMockFunc(req, mockArray, mock);
           }
-          console.log(apiKey);
-          for (let i = 0; i < mockArray.length; i++) {
-            let testMock = mockArray[i];
-            if (apiKey === (testMock.method + '.' + testMock.path)) {
-              mock = testMock;
-              if (testMock.count === apiKeyToCallCounts[apiKey]) {
-                break;
-              }
-            }
-          }
+
           if (mock) {
-            console.log('mocking ' + apiKey + ', count ' + apiKeyToCallCounts[apiKey] + ', with ' + JSON.stringify(mock));
-            ++apiKeyToCallCounts[apiKey];
-            return {
-              status: mock.status,
-              text: mock.body
+            log('mocking ' + apiKey + ', count ' + apiKeyToCallCounts[apiKey] + ', with ' + JSON.stringify(mock));
+            let response = {
+              status: mock.status
+            };
+            if (mock.contentType.includes('text/html')) {
+              response.text = mock.body;
+            } else if (mock.contentType.includes('application/json')) {
+              response.contentType = mock.contentType;
+              response.headers = {
+                'Content-type': mock.contentType
+              };
+              let body = mock.body;
+              body = JSON.stringify(mock.body);
+              response.text = body;
             }
+            return response;
+          } else {
+            log('CypressAutoMocker: allowing API to fall through: ' + apiKey +
+              '. This may indicate that your tests have changed and you should update the version passed to cy.automock');
           }
         });
       });
@@ -291,7 +330,7 @@ function registerAutoMockCommands() {
   Cypress.Commands.add('automockWaitOnPendingAPIs', () => {
     return new Cypress.Promise((resolve, reject) => {
       if (pendingApiCount) {
-        console.log('waiting on APIs to complete');
+        log('waiting on APIs to complete');
         completedPendingRequestsFunc = function () {
           resolve();
         };
@@ -301,43 +340,46 @@ function registerAutoMockCommands() {
     });
   });
 
-  Cypress.Commands.add('writeMockServer', () => {
-    if (currentMockFileName !== null && recordedApis) {
-      let apiCounter = {};
+  // Cypress.Commands.add('writeMockServer', () => {
+  //   if (currentMockFileName !== null && recordedApis) {
+  //     let apiCounter = {};
 
-      recordedApis.forEach(recordedApi => {
-        let outPath = recordedApi.path;
-        if (outPath[outPath.length - 1] === '/') {
-          outPath = outPath.substr(0, outPath.length - 1);
-        }
-        if (outPath[0] === '/') {
-          outPath = outPath.substr(1);
-        }
-        outPath += recordedApi.query;
-        if (apiCounter[outPath]) {
-          ++apiCounter[outPath];
-        } else {
-          apiCounter[outPath] = 1;
-        }
-        outPath += '.' + recordedApi.method + apiCounter[outPath];
+  //     recordedApis.forEach(recordedApi => {
+  //       let outPath = recordedApi.path;
+  //       if (outPath[outPath.length - 1] === '/') {
+  //         outPath = outPath.substr(0, outPath.length - 1);
+  //       }
+  //       if (outPath[0] === '/') {
+  //         outPath = outPath.substr(1);
+  //       }
+  //       outPath += recordedApi.query;
+  //       if (apiCounter[outPath]) {
+  //         ++apiCounter[outPath];
+  //       } else {
+  //         apiCounter[outPath] = 1;
+  //       }
+  //       outPath += '.' + recordedApi.method + apiCounter[outPath];
 
-        if (recordedApi.contentType.indexOf('json') !== -1) {
-          outPath += '.json';
-        } else if (recordedApi.contentType.indexOf('text') !== -1) {
-          outPath += '.txt';
-        }
-        recordedApi.fixture = outPath;
-        cy.writeFile(currentMockFixtureName + '/' + outPath, recordedApi.response);
-      });
-      recordedApis.version = version;
-      cy.writeFile(currentMockFileName, recordedApis);
+  //       if (recordedApi.contentType.indexOf('json') !== -1) {
+  //         outPath += '.json';
+  //       } else if (recordedApi.contentType.indexOf('text') !== -1) {
+  //         outPath += '.txt';
+  //       }
+  //       recordedApi.fixture = outPath;
+  //       cy.writeFile(currentMockFixtureName + '/' + outPath, recordedApi.response);
+  //     });
+
+  //     recordedApis.version = version;
+
+  //     debugger;
+  //     cy.writeFile(currentMockFileName, recordedApis);
 
 
-      currentMockFileName = null;
-    } else {
-      currentMockFileName = null;
-    }
-  });
+  //     currentMockFileName = null;
+  //   } else {
+  //     currentMockFileName = null;
+  //   }
+  // });
 
   automocker = window.Cypress.autoMocker = {
     isRecording: false,
@@ -358,7 +400,7 @@ function registerAutoMockCommands() {
         }
 
         if (mock) {
-          console.log('MOCKING ' + request.url);
+          log('MOCKING ' + request.url);
           return {
             status: mock.status,
             statusText: mock.statusText,
@@ -382,7 +424,7 @@ function registerAutoMockCommands() {
               let query = '';
               var blobResponseObject = null;
 
-              console.log('RECORD: ' + url);
+              log('RECORD: ' + url);
 
               if (typeof xhr.response === 'object') {
                 var fr = new FileReader();
@@ -418,7 +460,7 @@ function registerAutoMockCommands() {
         prepareOnLoadHandler(request);
       }
       if (automocker.isMocking) {
-        console.log(
+        log(
           'MOCKING ON, but letting this fall through: ' + request.url
         );
       }
@@ -426,7 +468,7 @@ function registerAutoMockCommands() {
       return false;
     },
 
-    onloadstart: event => { },
+    onloadstart: event => {},
 
     onloadend: event => {
       --pendingApiCount;
@@ -438,6 +480,8 @@ function registerAutoMockCommands() {
   };
 
   function startApiRecording() {
+    log('CypressAutoMocker: recording APIs');
+
     automocker.isRecording = true;
     recordedApis = [];
   }
@@ -448,7 +492,7 @@ function registerAutoMockCommands() {
     apiKeyToCallCounts = {};
     mockArray = mocks.recordings;
 
-    console.log('USING MOCK SERVER');
+    log('CypressAutoMocker: mocking API results');
 
     mockArray.forEach(function (mock) {
       const key = getApiKey(mock);
@@ -463,26 +507,24 @@ function registerAutoMockCommands() {
     });
   }
 
-  function setOptions(options) {
-    // create & set up default options
-    if (!options) {
-      options = {};
-    }
-
-    if (options.isCustomMock == undefined) {
-      options.isCustomMock = false;
-    }
-    currentOptions = options;
-    return options;
-  }
-
   function getApiKey(api) {
-    let path = api.path;
     if (api.url) {
-      path = parseUri(api.url).path;
+      let parsedUrl = parseUri(api.url);
+      api.path = parsedUrl.path;
+      api.query = parsedUrl.query;
     }
 
-    return api.method + '.' + path;
+    //   if (currentOptions.includeQuery) {
+    //     path = api.url;
+    //   } else {
+    //     path = parseUri(api.url).path;
+    //   }
+    // }
+    let result = api.method + '.' + api.path;
+    if (currentOptions.includeQuery && api.query && !api.url) {
+      result += '?' + api.query;
+    }
+    return result;
   }
 
   // (c) Steven Levithan <stevenlevithan.com>
@@ -531,4 +573,4 @@ function registerAutoMockCommands() {
       loose: /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/
     }
   };
-}  
+}
