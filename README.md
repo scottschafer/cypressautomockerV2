@@ -1,6 +1,8 @@
-## cypressautomocker
+## cypressautomockerV2
 
 This tool is built on top of the open-source testing platform [Cypress.io](https://www.cypress.io/) to allow recording API results and replaying the APIs as a mock server.
+
+Unlike the previous version (cypressautomocker), this does not require that your client application be modified, and it records APIs to separate fixture files. However, as Cypress doesn't yet support truly dynamic API stubbing based on the request, it uses XHook to mock those APIs.
 
 ![cypress auto mocker example tests running](https://user-images.githubusercontent.com/1271364/39590019-acdb52ce-4ecd-11e8-94ff-c33cc3894ac7.gif)
 
@@ -9,7 +11,6 @@ This tool is built on top of the open-source testing platform [Cypress.io](https
 There are three subfolders within the head directory:
 1. example: Contains a simple application to test against that implements APIs with changing responses, along with an example Cypress test.
 2. include-in-tests: Contains a library to include in your in your test suite,
-3. include-in-webapp: Contains a library to include in your application that is being tested.
 
 ##### Running the example
 
@@ -43,29 +44,20 @@ Integrating this tool into your web application involves a few steps:
 npm install --save cypressautomocker
 ```
 
-2. Add the cypress web hooks to your application.
-```
-import installCypressHooks from 'cypressautomocker/include-in-webapp';
-installCypressHooks();
-```
-Another option to do the same thing would be to include the following code in your HTML instead:
-```
-<script src="node_modules/cypressautomocker/include-in-webapp/installCypressHooks-norequire.js">
-```
-
-3. Add the following to cypress/support/commands.js
+2. Add the following to cypress/support/commands.js
 ```
 import registerAutoMockCommands from 'cypressautomocker/include-in-tests';
 registerAutoMockCommands();
 ```
 
-4. In each of your tests, add the following:
+3. In each of your tests, add the following:
 
 ```
   const MOCK_FILENAME = 'testCounter';
+  const MOCK_VERSION = 1;
 
   before(() => {
-    cy.automock(MOCK_FILENAME);
+    cy.automock(MOCK_FILENAME, MOCK_VERSION);
   });
 
   after(() => {
@@ -73,11 +65,14 @@ registerAutoMockCommands();
   });
 ```
 
-The `cy.automock()` takes an optional parameter whcih may contain a function named `resolveMockFunc`. This can be used to
-resolve to a different recorded mock than this library would normally pick. You can pass it like so:
+The version is saved into the recorded file. When loading the mock for playback, if the version doesn't match, the file is ignored and a new recording can take place. When your tests or client app changes so that new APIs need to be recorded, you can simply bump the version.
+
+Additionally, the `cy.automock()` takes an optional `options` parameter. See below:
 
 ```
-    cy.automock(MOCK_FILENAME, {
+    cy.automock(MOCK_FILENAME, MOCK_VERSION, {
+      verbose: true,       // do we log verbosely to the console
+      includeQuery: false,  // do we consider query parameters as part of the API
       resolveMockFunc: (request, mockArray, mock) => {
         console.log(request.method + ' ' + request.url);
         // just return the resolved mock. This is a no-op. We could resolve to a different one in mockArray
